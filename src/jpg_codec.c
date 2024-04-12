@@ -4,6 +4,7 @@
 #include "string.h"
 #include "stdbool.h"
 
+
 typedef int (*block_handler)(jpg_file_params_t *jpg_param, void* data, uint16_t data_size);
 
 typedef enum chunk_types_codes {
@@ -11,6 +12,7 @@ typedef enum chunk_types_codes {
     CHUNK_TYPE_SOF0 = 0xFFC0,
     CHUNK_TYPE_DHT = 0xFFC4,
     CHUNK_TYPE_SOS = 0xFFDA,
+    CHUNK_TYPE_COMMENT = 0xFFFE
 } chunk_types_codes_t;
 
 typedef struct {
@@ -22,12 +24,16 @@ static int chunk_handler_dqt(jpg_file_params_t *jpg_param, void* data, uint16_t 
 static int chunk_handler_sof0(jpg_file_params_t *jpg_param, void* data, uint16_t data_size);
 static int chunk_handler_dht(jpg_file_params_t *jpg_param, void* data, uint16_t data_size);
 static int chunk_handler_sos(jpg_file_params_t *jpg_param, void* data, uint16_t data_size);
+static int chunk_handler_comment(jpg_file_params_t *jpg_param, void* data, uint16_t data_size);
+
+static int decode_data_flow(jpg_decoding_params_t *decoding_param, channels_matrixes_t** matrixes);
 
 static handlers_table_item_t s_block_handlers[] = {
     {.type = CHUNK_TYPE_DQT, .handler = chunk_handler_dqt},
     {.type = CHUNK_TYPE_SOF0, .handler = chunk_handler_sof0},
     {.type = CHUNK_TYPE_DHT, .handler = chunk_handler_dht},
     {.type = CHUNK_TYPE_SOS, .handler = chunk_handler_sos},
+    {.type = CHUNK_TYPE_COMMENT, .handler = chunk_handler_comment},
 };
 
 int jpeg_codec_zigzag_to_matrix(int bytes_per_value, uint16_t ***matrix_ptr, uint8_t* l_array, size_t arr_size)
@@ -88,7 +94,7 @@ int jpg_codec_file_dump(jpg_file_params_t *jpg_param)
         for (int k = 0; k < 8; k++){
             printf("[DQT] \t\t[");
             for (int j = 0; j < 8; j++){
-                printf("%hx ", dqt_table[k][j]);
+                printf("%.4hX ", dqt_table[k][j]);
             }
             printf("]\n");
         }
@@ -101,14 +107,43 @@ int jpg_codec_file_dump(jpg_file_params_t *jpg_param)
     printf("[SOF0] Precision: %d\n", jpg_param->sof0->header.precision);
     printf("[SOF0] Image height: %d\n", jpg_param->sof0->header.height);
     printf("[SOF0] Image width: %d\n", jpg_param->sof0->header.width);
-    printf("[SOF0] Number of channels: %d\n", jpg_param->sof0->header.chanel_cnt);
-    for (int i = 0; i < jpg_param->sof0->header.chanel_cnt; i++){
+    printf("[SOF0] Number of channels: %d\n", jpg_param->sof0->header.channel_cnt);
+    for (int i = 0; i < jpg_param->sof0->header.channel_cnt; i++){
         printf("[SOF0] \tChannel id: %d\n", jpg_param->sof0->channels[i].id);
         printf("[SOF0] \tHorizontal thinning: %d\n", jpg_param->sof0->channels[i].h_thinning);
         printf("[SOF0] \tVertical thinning: %d\n", jpg_param->sof0->channels[i].v_thinning);
         printf("[SOF0] \tDQT table id: %d\n\n", jpg_param->sof0->channels[i].dqt_id);
     }
 
+    printf("\n");
+    printf("[DHT] DHTs count: %d\n", jpg_param->dht_cnt);
+    for (int i = 0; i < jpg_param->dht_cnt; i++){
+        printf("[DHT] \tTable id: %d\n", jpg_param->dht[i]->header.table_id);
+        printf("[DHT] \tCLASS: %s\n", jpg_param->dht[i]->header.table_class ? "AC" : "DC");
+        printf("[DHT] \tCodes length counts:\n");
+        printf("[DHT] \t");
+        for (int j = 0; j < 16; j++){
+            printf("[%d] ", jpg_param->dht[i]->header.codes_cnts_by_length[j]);
+        }
+        printf("\n");
+        printf("[DHT] \tCodes: \n");
+        printf("[DHT] \t");
+        for (int k = 0; k < jpg_param->dht[i]->header.codes_value_cnt; k++){
+            if (k%16 == 0)
+                printf("\n[DHT] \t");
+            printf("[0x%.2X] ", jpg_param->dht[i]->codes_value[k]);
+        }
+        printf("\n\n");
+    }
+
+    printf("\n");
+    printf("[SOS] Channels count: %d\n", jpg_param->sos->channel_cnt);
+    for (int i = 0; i < jpg_param->sos->channel_cnt; i++){
+        printf("[SOS] \tChannel id: %d\n", jpg_param->sos->channels[i].channel_id);
+        printf("[SOS] \tHuffman DC table id: %d\n", jpg_param->sos->channels[i].huffman_table_dc_id);
+        printf("[SOS] \tHuffman AC table id: %d\n", jpg_param->sos->channels[i].huffman_table_ac_id);
+        printf("\n");
+    }
 
 }
 
@@ -131,30 +166,7 @@ int jpg_codec_file_decode(FILE *jpg_file, void **out_pixel_array)
     if (l_begin_marker != 0xFFD8){
         return -2;
     }
-
-    // uint16_t l_comment_marker = getc(jpg_file) << 8;
-    // l_comment_marker |= getc(jpg_file);
-
-    // if (l_comment_marker == 0xFFFE){
-    //     uint16_t l_comment_size = getc(jpg_file) << 8;
-    //     l_comment_size |= getc(jpg_file);
-
-    //     if (!l_comment_size || l_comment_marker != 0xFFFE){
-    //         return -4;
-    //     }
-
-    //     jpg_comment_t *l_comment = calloc(l_comment_size, sizeof(char));
-    //     l_comment->size = l_comment_size;
-    //     int l_size = fread (l_comment->data, sizeof(char), l_comment_size - 2, jpg_file);
-
-    //     if (!l_size){
-    //         return -5;
-    //     }
-
-    //     printf("Comment: %s\n", (char*)l_comment->data);
-    // }
-
-    
+  
     uint16_t l_section_marker = 0;
     // parse jpg file
     for (;;){
@@ -178,8 +190,10 @@ int jpg_codec_file_decode(FILE *jpg_file, void **out_pixel_array)
             int l_size = fread (l_data, sizeof(char), l_section_size, jpg_file);
 
             for(int i = 0; i < sizeof(s_block_handlers)/sizeof(handlers_table_item_t); i++){
-                if (s_block_handlers[i].type == l_section_marker && s_block_handlers[i].handler)
+                if (s_block_handlers[i].type == l_section_marker && s_block_handlers[i].handler){
                     s_block_handlers[i].handler(&jpg_param, l_data, l_section_size);
+                    break;
+                }
             }
 
             if (l_data)
@@ -201,11 +215,15 @@ int jpg_codec_file_decode(FILE *jpg_file, void **out_pixel_array)
             int l_size = fread (b_encoded_data, sizeof(uint8_t), remain_size, jpg_file);
             for (int i = 0; i < remain_size - 1; i++){
                 if (b_encoded_data[i+1] == 0xD9 && b_encoded_data[i] == 0xFF){
-                    b_encoded_data = realloc(b_encoded_data, (i - 1) * sizeof(uint8_t));
+                    remain_size = (i - 1) * sizeof(uint8_t);
+                    b_encoded_data = realloc(b_encoded_data, remain_size);
                     jpg_param.encoded_data = b_encoded_data;
+                    jpg_param.encoded_data_size = remain_size;
                     break;
                 } 
             }
+
+            
 
 
             if (!jpg_param.encoded_data){
@@ -219,8 +237,37 @@ int jpg_codec_file_decode(FILE *jpg_file, void **out_pixel_array)
     }
 
     jpg_codec_file_dump(&jpg_param);
+    jpg_decoding_params_t jpg_decode_params = {};
+    jpg_decode_params.dqt_tables_cnt = jpg_param.dqt_tables_cnt;
+    jpg_decode_params.dqt_tables = calloc(sizeof(uint16_t**), jpg_param.dqt_tables_cnt);
+    for (int i = 0; i < jpg_param.dqt_tables_cnt; i++){
+        uint16_t **dqt_table = NULL;
+        jpeg_codec_zigzag_to_matrix(jpg_param.dqt_param[i]->header.tbl_value_size, &dqt_table, jpg_param.dqt_param[i]->table, 64);
+        jpg_decode_params.dqt_tables[i] = dqt_table;
+    }
 
+    jpg_decode_params.huffman_trees = calloc(sizeof(huffman_tree_t*), jpg_param.dht_cnt);
+    jpg_decode_params.huffman_trees_cnt = jpg_param.dht_cnt;
+    for(int i = 0; i < jpg_param.dht_cnt; i++)
+        jpg_decode_params.huffman_trees[i] = huffman_tree_create(jpg_param.dht[i]->header.table_class, 
+                                            jpg_param.dht[i]->header.table_id,
+                                            jpg_param.dht[i]->header.codes_cnts_by_length, 
+                                            jpg_param.dht[i]->codes_value, 
+                                            jpg_param.dht[i]->header.codes_value_cnt);
     
+    size_t sos_size = sizeof(uint8_t) + jpg_param.sos->channel_cnt * sizeof(jpg_sos_channel_t);
+    jpg_decode_params.sos = calloc(1, sos_size);
+    memcpy(jpg_decode_params.sos, jpg_param.sos, sos_size);
+
+    size_t sof0_size = sizeof(jpg_param.sof0->header) + jpg_param.sof0->header.channel_cnt * sizeof(jpg_sof0_channel);
+    jpg_decode_params.sof0 = calloc(1, sof0_size);
+    memcpy(jpg_decode_params.sof0, jpg_param.sof0, sof0_size);
+
+    jpg_decode_params.encoded_data = calloc(jpg_decode_params.encoded_data_size, sizeof(uint8_t));
+    jpg_decode_params.encoded_data_size = jpg_param.encoded_data_size;
+    memcpy(jpg_decode_params.encoded_data, jpg_param.encoded_data, jpg_decode_params.encoded_data_size);
+    
+    jpg_codec_jpg_param_remove(&jpg_param);
 
 
 
@@ -232,7 +279,6 @@ static int chunk_handler_dqt(jpg_file_params_t *jpg_param, void* data, uint16_t 
 {
     if (!data_size || !data || !jpg_param)
         return -1;
-
 
     jpg_dqt_t *l_buf_dqt = calloc(data_size - sizeof(uint8_t) + sizeof(l_buf_dqt->header), sizeof(uint8_t));
 
@@ -266,7 +312,7 @@ static int chunk_handler_sof0(jpg_file_params_t *jpg_param, void* data, uint16_t
     l_buf_sof->header.precision = precision;
     l_buf_sof->header.height = height;
     l_buf_sof->header.width = width;
-    l_buf_sof->header.chanel_cnt = chanel_cnt;
+    l_buf_sof->header.channel_cnt = chanel_cnt;
 
     for (int i = 0; i < chanel_cnt; i++){
         l_buf_sof->channels[i].id = *(uint8_t*)++data_pointer;
@@ -300,7 +346,7 @@ static int chunk_handler_dht(jpg_file_params_t *jpg_param, void* data, uint16_t 
     }
 
     l_buf_dht = (jpg_dht_t*)realloc(l_buf_dht, sizeof(l_buf_dht->header) + l_buf_dht->header.codes_value_cnt * sizeof(uint8_t));
-    memcpy(l_buf_dht->codes_value, data_pointer, data_size - 17);
+    memcpy(l_buf_dht->codes_value, data_pointer, l_buf_dht->header.codes_value_cnt);
 
     jpg_param->dht_cnt++;
     jpg_param->dht = (jpg_dht_t **)realloc(jpg_param->dht, jpg_param->dht_cnt * sizeof(jpg_dht_t *));
@@ -329,5 +375,36 @@ static int chunk_handler_sos(jpg_file_params_t *jpg_param, void* data, uint16_t 
     }
 
     jpg_param->sos = l_buf_sos;
+    return 0;
+}
+
+static int chunk_handler_comment(jpg_file_params_t *jpg_param, void* data, uint16_t data_size)
+{
+    if (!data_size || !data || !jpg_param)
+        return -1;
+
+    char *l_comment = calloc(data_size + 1, sizeof(char));
+    memcpy(l_comment, data, data_size);
+
+    printf("Comment: %s\n", (char*)l_comment);
+    free(l_comment);
+
+    return 0;
+}
+
+static int decode_data_flow(jpg_decoding_params_t *decoding_param, uint8_t*** zigzag_matrix)
+{
+    uint8_t** l_zigzag_matrix = NULL;
+
+    uint8_t b_zigzag_array = calloc(64, sizeof(uint8_t));
+    uint8_t b_zigzag_pos = 0;
+    for (size_t i = 0; i < decoding_param->encoded_data_size; i++){
+        for (int i = 0; i < 8; i++){
+            decoding_param->encoded_data[i] & (0x01 << i);
+            
+        }
+    }
+
+
     return 0;
 }

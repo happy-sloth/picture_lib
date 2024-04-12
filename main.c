@@ -3,10 +3,21 @@
 
 int main(int argc, char** argv)
 {
+    // if (argc < 2){
+    //     printf("Input file is not specified.");
+    //     return -1;
+    // }
+
     FILE *output = NULL;
-    output = fopen("./60669610479084c8ecd776f5a2acd10c.jpg", "rb");
+    // output = fopen(argv[1], "rb");
+    // output = fopen("/mnt/c/Users/aloha/Downloads/123.jpg", "rb");
+    output = fopen("/home/happy-sloth/study/picture_lib/60669610479084c8ecd776f5a2acd10c.jpg", "rb");
     
-    // output = fopen("/mnt/e/Фото и видео архив/На печать/жипег/20230507_102255.jpg", "rb");
+    
+    if (!output){
+        printf("Can't find file %s\n", argv[1]);
+        return -1;
+    }
     void* l_array = NULL;
 
     int l_ret_status = jpg_codec_file_decode(output, &l_array);

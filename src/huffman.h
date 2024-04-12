@@ -7,8 +7,9 @@
 
 typedef struct tree_node{
     int value;
-    struct tree_node_t *left;
-    struct tree_node_t *right;
+    bool leaf_node;
+    struct tree_node *left;
+    struct tree_node *right;
 } tree_node_t;
 
 typedef struct huffman_tree {
@@ -18,4 +19,4 @@ typedef struct huffman_tree {
 } huffman_tree_t;
 
 
-huffman_tree_t *huffman_tree_create(uint8_t class, uint8_t id, uint8_t *codes_cnt_array, uint8_t *values, uint8_t values_cnt);
+huffman_tree_t *huffman_tree_create(uint8_t tree_class, uint8_t id, uint8_t *codes_cnt_array, uint8_t *values, uint8_t values_cnt);

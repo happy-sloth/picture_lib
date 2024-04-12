@@ -1,4 +1,4 @@
-
+#include "huffman.h"
 
 #pragma pack(push, 1)
 typedef struct jpg_comment {
@@ -30,7 +30,7 @@ typedef struct jpg_sof0 {
         uint8_t precision;
         uint16_t height;
         uint16_t width;
-        uint8_t chanel_cnt;
+        uint8_t channel_cnt;
     } header;
     jpg_sof0_channel channels[];
 }jpg_sof0_t;
@@ -64,6 +64,9 @@ typedef struct {
 
 } YCbCr_pixel;
 
+typedef struct {
+
+} channels_matrixes_t;
 
 typedef struct jpg_file_params {
     int dqt_tables_cnt;
@@ -72,6 +75,7 @@ typedef struct jpg_file_params {
     int dht_cnt;
     jpg_dht_t **dht;
     jpg_sos_t *sos;
+    size_t encoded_data_size;
     uint8_t *encoded_data;
 } jpg_file_params_t;
 
@@ -79,6 +83,10 @@ typedef struct jpg_decoding_params {
     int dqt_tables_cnt;
     uint16_t ***dqt_tables;
     jpg_sos_t *sos;
-    
+    jpg_sof0_t *sof0;
+    int huffman_trees_cnt;
+    huffman_tree_t **huffman_trees;
+    size_t encoded_data_size;
+    uint8_t *encoded_data;
 } jpg_decoding_params_t;
 #pragma pack(pop)
