@@ -26,7 +26,7 @@ static int chunk_handler_dht(jpg_file_params_t *jpg_param, void* data, uint16_t 
 static int chunk_handler_sos(jpg_file_params_t *jpg_param, void* data, uint16_t data_size);
 static int chunk_handler_comment(jpg_file_params_t *jpg_param, void* data, uint16_t data_size);
 
-static int decode_data_flow(jpg_decoding_params_t *decoding_param, channels_matrixes_t** matrixes);
+static int decode_data_flow(jpg_decoding_params_t *decoding_param, uint8_t*** matrixes);
 
 static handlers_table_item_t s_block_handlers[] = {
     {.type = CHUNK_TYPE_DQT, .handler = chunk_handler_dqt},
@@ -398,9 +398,13 @@ static int decode_data_flow(jpg_decoding_params_t *decoding_param, uint8_t*** zi
 
     uint8_t b_zigzag_array = calloc(64, sizeof(uint8_t));
     uint8_t b_zigzag_pos = 0;
+
+
+    huffman_tree_t *huffman_tree_current = decoding_param->huffman_trees;
     for (size_t i = 0; i < decoding_param->encoded_data_size; i++){
         for (int i = 0; i < 8; i++){
-            decoding_param->encoded_data[i] & (0x01 << i);
+
+            // if (decoding_param->encoded_data[i] & (0x01 << i))
             
         }
     }
