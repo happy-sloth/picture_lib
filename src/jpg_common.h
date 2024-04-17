@@ -1,3 +1,4 @@
+#pragma once
 #include "huffman.h"
 
 #pragma pack(push, 1)
@@ -11,7 +12,7 @@ typedef struct jpg_dqt {
         int tbl_value_size;
         int tbl_id;
     } header;
-    uint8_t table[];
+    int8_t table[];
 }jpg_dqt_t;
 
 typedef struct {
@@ -57,9 +58,11 @@ typedef struct {
 } jpg_sos_t;
 
 typedef struct {
-
-} rgb_pixel;
-
+    uint8_t R;
+    uint8_t G;
+    uint8_t B;
+} rgb_pixel_t;
+    
 typedef struct {
 
 } YCbCr_pixel;
@@ -80,8 +83,10 @@ typedef struct jpg_file_params {
 } jpg_file_params_t;
 
 typedef struct jpg_decoding_params {
+    uint8_t Hmax;
+    uint8_t Vmax;
     int dqt_tables_cnt;
-    uint16_t ***dqt_tables;
+    int8_t ***dqt_tables;
     jpg_sos_t *sos;
     jpg_sof0_t *sof0;
     int huffman_trees_cnt;

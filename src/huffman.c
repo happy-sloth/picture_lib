@@ -6,6 +6,8 @@ static bool s_huffman_add_value(tree_node_t *cur_node, int current_depth, int ta
 huffman_tree_t *huffman_tree_create(uint8_t tree_class, uint8_t id, uint8_t *codes_cnt_array, uint8_t *values, uint8_t values_cnt)
 {
     huffman_tree_t *tree = calloc(1, sizeof(huffman_tree_t));
+    tree->id = id;
+    tree->tree_class = tree_class;
     tree->tree = calloc(1, sizeof(tree_node_t));
     tree->tree->leaf_node = false;
     
