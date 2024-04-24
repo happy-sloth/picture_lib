@@ -40,7 +40,7 @@ int  bmp_file_create(rgb_pixel_t **pixel_matrix, int height, int width)
     FILE *output = NULL;
     int number;
  
-    output = fopen("/home/happy-sloth/pet/picture_lib/test.bmp", "wb");
+    output = fopen("/home/happy-sloth/study/picture_lib/test.bmp", "wb");
     if (!output)
         return -2;
 

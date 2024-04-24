@@ -7,7 +7,7 @@
 #include "jpg_common.h"
 #include "bmp_codec.h"
 #include "DCT_coefficients.h"
-
+#include <stdarg.h>
 
 
 typedef int (*block_handler)(jpg_file_params_t *jpg_param, void* data, uint16_t data_size);
@@ -43,6 +43,27 @@ static handlers_table_item_t s_block_handlers[] = {
 
 typedef enum {CHANNEL_Y = 1, CHANNEL_Cb, CHANNEL_Cr} channel_name_t;
 typedef enum {COEFF_NAME_DC = 0, COEFF_NAME_AC} coeff_name_t;
+
+static void log_str(const char* format_str, ...)
+{
+    char buf_str[4096] = {0};
+    va_list ap;
+
+    va_start(ap, format_str);
+    vsprintf(buf_str, format_str, ap);
+    va_end(ap);
+
+    printf("%s", buf_str);
+    fflush(stdout);
+    FILE* log_file = fopen("./log.log", "a");
+    if (!log_file){
+        printf("Can't open log file.");
+        return;
+    }
+    fputs(buf_str, log_file);
+    
+    fclose(log_file);
+}
 
 int jpeg_codec_zigzag_to_matrix(int8_t ***matrix_ptr, int8_t * l_array, size_t arr_size)
 {
@@ -158,66 +179,66 @@ static int s_pow_2(int deg)
 
 int jpg_codec_file_dump(jpg_file_params_t *jpg_param)
 {
-    printf("=== Dump of jpg_file ===\n");
-    printf("[DQT] Number of DQT tables: %d\n", jpg_param->dqt_tables_cnt);
+    log_str("=== Dump of jpg_file ===\n");
+    log_str("[DQT] Number of DQT tables: %d\n", jpg_param->dqt_tables_cnt);
     for (int i = 0; i < jpg_param->dqt_tables_cnt; i++){
         int8_t **dqt_table = NULL;
-        printf("[DQT] \tDQT table id: %d\n", jpg_param->dqt_param[i]->header.tbl_id);
-        printf("[DQT] \tDQT table value size: %d byte\n", jpg_param->dqt_param[i]->header.tbl_value_size);
+        log_str("[DQT] \tDQT table id: %d\n", jpg_param->dqt_param[i]->header.tbl_id);
+        log_str("[DQT] \tDQT table value size: %d byte\n", jpg_param->dqt_param[i]->header.tbl_value_size);
         jpeg_codec_zigzag_to_matrix(&dqt_table, jpg_param->dqt_param[i]->table, 64);
-        printf("[DQT] \tDQT table:\n");
+        log_str("[DQT] \tDQT table:\n");
         for (int k = 0; k < 8; k++){
-            printf("[DQT] \t\t[");
+            log_str("[DQT] \t\t[");
             for (int j = 0; j < 8; j++){
-                printf("%hx ", (uint8_t)dqt_table[k][j]);
+                log_str("%hx ", (uint8_t)dqt_table[k][j]);
             }
-            printf("]\n");
+            log_str("]\n");
         }
         for (int i = 0; i < 8;i++)
             free(dqt_table[i]);
         
         free(dqt_table);
     }
-    printf("\n");
-    printf("[SOF0] Precision: %d\n", jpg_param->sof0->header.precision);
-    printf("[SOF0] Image height: %d\n", jpg_param->sof0->header.height);
-    printf("[SOF0] Image width: %d\n", jpg_param->sof0->header.width);
-    printf("[SOF0] Number of channels: %d\n", jpg_param->sof0->header.channel_cnt);
+    log_str("\n");
+    log_str("[SOF0] Precision: %d\n", jpg_param->sof0->header.precision);
+    log_str("[SOF0] Image height: %d\n", jpg_param->sof0->header.height);
+    log_str("[SOF0] Image width: %d\n", jpg_param->sof0->header.width);
+    log_str("[SOF0] Number of channels: %d\n", jpg_param->sof0->header.channel_cnt);
     for (int i = 0; i < jpg_param->sof0->header.channel_cnt; i++){
-        printf("[SOF0] \tChannel id: %d\n", jpg_param->sof0->channels[i].id);
-        printf("[SOF0] \tHorizontal thinning: %d\n", jpg_param->sof0->channels[i].h_thinning);
-        printf("[SOF0] \tVertical thinning: %d\n", jpg_param->sof0->channels[i].v_thinning);
-        printf("[SOF0] \tDQT table id: %d\n\n", jpg_param->sof0->channels[i].dqt_id);
+        log_str("[SOF0] \tChannel id: %d\n", jpg_param->sof0->channels[i].id);
+        log_str("[SOF0] \tHorizontal thinning: %d\n", jpg_param->sof0->channels[i].h_thinning);
+        log_str("[SOF0] \tVertical thinning: %d\n", jpg_param->sof0->channels[i].v_thinning);
+        log_str("[SOF0] \tDQT table id: %d\n\n", jpg_param->sof0->channels[i].dqt_id);
     }
 
-    printf("\n");
-    printf("[DHT] DHTs count: %d\n", jpg_param->dht_cnt);
+    log_str("\n");
+    log_str("[DHT] DHTs count: %d\n", jpg_param->dht_cnt);
     for (int i = 0; i < jpg_param->dht_cnt; i++){
-        printf("[DHT] \tTable id: %d\n", jpg_param->dht[i]->header.table_id);
-        printf("[DHT] \tCLASS: %s\n", jpg_param->dht[i]->header.table_class ? "AC" : "DC");
-        printf("[DHT] \tCodes length counts:\n");
-        printf("[DHT] \t");
+        log_str("[DHT] \tTable id: %d\n", jpg_param->dht[i]->header.table_id);
+        log_str("[DHT] \tCLASS: %s\n", jpg_param->dht[i]->header.table_class ? "AC" : "DC");
+        log_str("[DHT] \tCodes length counts:\n");
+        log_str("[DHT] \t");
         for (int j = 0; j < 16; j++){
-            printf("[%d] ", jpg_param->dht[i]->header.codes_cnts_by_length[j]);
+            log_str("[%d] ", jpg_param->dht[i]->header.codes_cnts_by_length[j]);
         }
-        printf("\n");
-        printf("[DHT] \tCodes: \n");
-        printf("[DHT] \t");
+        log_str("\n");
+        log_str("[DHT] \tCodes: \n");
+        log_str("[DHT] \t");
         for (int k = 0; k < jpg_param->dht[i]->header.codes_value_cnt; k++){
             if (k%16 == 0)
-                printf("\n[DHT] \t");
-            printf("[0x%.2X] ", jpg_param->dht[i]->codes_value[k]);
+                log_str("\n[DHT] \t");
+            log_str("[0x%.2X] ", jpg_param->dht[i]->codes_value[k]);
         }
-        printf("\n\n");
+        log_str("\n\n");
     }
 
-    printf("\n");
-    printf("[SOS] Channels count: %d\n", jpg_param->sos->channel_cnt);
+    log_str("\n");
+    log_str("[SOS] Channels count: %d\n", jpg_param->sos->channel_cnt);
     for (int i = 0; i < jpg_param->sos->channel_cnt; i++){
-        printf("[SOS] \tChannel id: %d\n", jpg_param->sos->channels[i].channel_id);
-        printf("[SOS] \tHuffman DC table id: %d\n", jpg_param->sos->channels[i].huffman_table_dc_id);
-        printf("[SOS] \tHuffman AC table id: %d\n", jpg_param->sos->channels[i].huffman_table_ac_id);
-        printf("\n");
+        log_str("[SOS] \tChannel id: %d\n", jpg_param->sos->channels[i].channel_id);
+        log_str("[SOS] \tHuffman DC table id: %d\n", jpg_param->sos->channels[i].huffman_table_dc_id);
+        log_str("[SOS] \tHuffman AC table id: %d\n", jpg_param->sos->channels[i].huffman_table_ac_id);
+        log_str("\n");
     }
 
 }
@@ -253,13 +274,13 @@ int jpg_codec_jpg_param_remove(jpg_file_params_t *jpg_param)
 
 static int8_t **s_get_dqt(jpg_decoding_params_t *decode_param, int channel_id)
 {
-    // printf("Search dqt for channel %d\n", channel_id);
+    // log_str("Search dqt for channel %d\n", channel_id);
     int chan_idx = 0;
     for (int i = 0; i < decode_param->sof0->header.channel_cnt; i++){
         if (decode_param->sof0->channels[i].id == channel_id)
             return decode_param->dqt_tables[decode_param->sof0->channels[i].dqt_id];
     }
-    // printf("Fail\n");
+    // log_str("Fail\n");
     return NULL;
 }
 
@@ -322,13 +343,13 @@ int jpg_codec_file_decode(FILE *jpg_file, void **out_pixel_array)
             // go to old position
             fseek(jpg_file, position, SEEK_SET);
 
-            size_t remain_size = end_position - position;
+            size_t remain_size = end_position - position + 1;
             uint8_t* b_encoded_data = malloc(remain_size);
 
             int l_size = fread (b_encoded_data, sizeof(uint8_t), remain_size, jpg_file);
             for (int i = 0; i < remain_size - 1; i++){
                 if (b_encoded_data[i+1] == 0xD9 && b_encoded_data[i] == 0xFF){
-                    remain_size = (i - 1) * sizeof(uint8_t);
+                    remain_size = (i-1) * sizeof(uint8_t);
                     b_encoded_data = realloc(b_encoded_data, remain_size);
                     jpg_param.encoded_data = b_encoded_data;
                     jpg_param.encoded_data_size = remain_size;
@@ -348,7 +369,7 @@ int jpg_codec_file_decode(FILE *jpg_file, void **out_pixel_array)
 
     clock_t end = clock();
     double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-    printf("File decoded in %f sec\n", time_spent);
+    log_str("File decoded in %f sec\n", time_spent);
     clock_t begin_block = clock();
 
     jpg_codec_file_dump(&jpg_param);
@@ -363,13 +384,18 @@ int jpg_codec_file_decode(FILE *jpg_file, void **out_pixel_array)
 
     jpg_decode_params.huffman_trees = calloc(jpg_param.dht_cnt, sizeof(huffman_tree_t*));
     jpg_decode_params.huffman_trees_cnt = jpg_param.dht_cnt;
-    for(int i = 0; i < jpg_param.dht_cnt; i++)
+    for(int i = 0; i < jpg_param.dht_cnt; i++){
         jpg_decode_params.huffman_trees[i] = huffman_tree_create(jpg_param.dht[i]->header.table_class, 
                                             jpg_param.dht[i]->header.table_id,
                                             jpg_param.dht[i]->header.codes_cnts_by_length, 
                                             jpg_param.dht[i]->codes_value, 
                                             jpg_param.dht[i]->header.codes_value_cnt);
+        huffman_tree_dump(jpg_decode_params.huffman_trees[i]);
+    }
     
+
+
+
     size_t sos_size = sizeof(uint8_t) + jpg_param.sos->channel_cnt * sizeof(jpg_sos_channel_t);
     jpg_decode_params.sos = calloc(1, sos_size);
     memcpy(jpg_decode_params.sos, jpg_param.sos, sos_size);
@@ -382,7 +408,16 @@ int jpg_codec_file_decode(FILE *jpg_file, void **out_pixel_array)
     jpg_decode_params.encoded_data_size = jpg_param.encoded_data_size;
     memcpy(jpg_decode_params.encoded_data, jpg_param.encoded_data, jpg_decode_params.encoded_data_size);
     
+    log_str("bitflow size = %lu\n", jpg_decode_params.encoded_data_size);
+
     jpg_codec_jpg_param_remove(&jpg_param);
+
+    for (size_t i =0; i < jpg_decode_params.encoded_data_size; i++){
+        char str[9] = {};
+        print_binary_8bit(jpg_decode_params.encoded_data[i] , str);
+        log_str("%s|", str);
+    }
+    log_str("\n");
 
     int** zigzag_matrixes = NULL;
     int matrix_cnt = decode_data_flow(&jpg_decode_params, &zigzag_matrixes);
@@ -394,9 +429,21 @@ int jpg_codec_file_decode(FILE *jpg_file, void **out_pixel_array)
         matrix[i] = b_matrix;
     }
     
+    log_str("[*] Found %d DCT Matrices\n", matrix_cnt);
+    for(int i = 0; i < matrix_cnt; i++){
+        log_str("[*] DCT Matrix #%d\n", i);
+        for (int k = 0; k < 8; k++){
+            log_str("[*] \t\t[");
+            for (int j = 0; j < 8; j++){
+                log_str("%d ", matrix[i][k][j]);
+            }
+            log_str("]\n");
+        }
+    }
+
     end = clock();
     time_spent = (double)(end - begin_block) / CLOCKS_PER_SEC;
-    printf("All decode params compued in %f sec\n", time_spent);
+    log_str("All decode params compued in %f sec\n", time_spent);
     begin_block = clock();
 
     // Recompute Y channel matrix
@@ -420,16 +467,16 @@ int jpg_codec_file_decode(FILE *jpg_file, void **out_pixel_array)
         }
     }
 
-    // for(int i = 0; i < matrix_cnt; i++){
-    //     printf("[*] Matrix #%d\n", i);
-    //     for (int k = 0; k < 8; k++){
-    //         printf("[*] \t\t[");
-    //         for (int j = 0; j < 8; j++){
-    //             printf("%d ", matrix[i][k][j]);
-    //         }
-    //         printf("]\n");
-    //     }
-    // }
+    for(int i = 0; i < matrix_cnt; i++){
+        log_str("[*] Matrix #%d\n", i);
+        for (int k = 0; k < 8; k++){
+            log_str("[*] \t\t[");
+            for (int j = 0; j < 8; j++){
+                log_str("%d ", matrix[i][k][j]);
+            }
+            log_str("]\n");
+        }
+    }
 
     // Let's quantize matrices
     int current_channel_cnt = 0;
@@ -449,16 +496,16 @@ int jpg_codec_file_decode(FILE *jpg_file, void **out_pixel_array)
         }
     }
 
-    // for(int i = 0; i < matrix_cnt; i++){
-    //     printf("[*] Quantize Matrix #%d\n", i);
-    //     for (int k = 0; k < 8; k++){
-    //         printf("[*] \t\t[");
-    //         for (int j = 0; j < 8; j++){
-    //             printf("%d ", matrix[i][k][j]);
-    //         }
-    //         printf("]\n");
-    //     }
-    // }
+    for(int i = 0; i < matrix_cnt; i++){
+        log_str("[*] Quantize Matrix #%d\n", i);
+        for (int k = 0; k < 8; k++){
+            log_str("[*] \t\t[");
+            for (int j = 0; j < 8; j++){
+                log_str("%d ", matrix[i][k][j]);
+            }
+            log_str("]\n");
+        }
+    }
 
     // DCT
     int ***output_matrix = calloc(matrix_cnt, sizeof(int **));
@@ -495,30 +542,30 @@ int jpg_codec_file_decode(FILE *jpg_file, void **out_pixel_array)
 
 
     for(int i = 0; i < matrix_cnt; i++){
-        printf("[*] YCbCr Matrix #%d\n", i);
+        log_str("[*] YCbCr Matrix #%d\n", i);
         for (int k = 0; k < 8; k++){
-            printf("[*] \t\t[");
+            log_str("[*] \t\t[");
             for (int j = 0; j < 8; j++){
-                printf("%d ", output_matrix[i][k][j]);
+                log_str("%d ", output_matrix[i][k][j]);
             }
-            printf("]\n");
+            log_str("]\n");
         }
     }
 
     end = clock();
     time_spent = (double)(end - begin_block) / CLOCKS_PER_SEC;
-    printf("DCT made in  %f sec\n", time_spent);
+    log_str("DCT made in  %f sec\n", time_spent);
     begin_block = clock();
 
-    printf("[*] Lets transform YCrCb to RGB.\n");
+    log_str("[*] Lets transform YCrCb to RGB.\n");
     size_t pixel_cnt = jpg_decode_params.sof0->header.height*jpg_decode_params.sof0->header.width;
     rgb_pixel_t **RGB_matrix = calloc(jpg_decode_params.sof0->header.height, sizeof(rgb_pixel_t **));
     for (int j = 0 ; j < jpg_decode_params.sof0->header.height ; j++){
             RGB_matrix[j] = calloc(jpg_decode_params.sof0->header.width, sizeof(rgb_pixel_t*));
     }
 
-    for (size_t k = 0; k < 16/*jpg_decode_params.sof0->header.height*/; k++){
-        for (size_t j = 0; j < 16/*jpg_decode_params.sof0->header.width*/; j++){
+    for (size_t k = 0; k < jpg_decode_params.sof0->header.height; k++){
+        for (size_t j = 0; j < jpg_decode_params.sof0->header.width; j++){
             size_t cur_matrix_block = 6*(j/16 + (k/16 > 0 ? (jpg_decode_params.sof0->header.width/16) * (k/16) : 0 ));
             size_t cur_matrix_Y = 0;
             size_t cur_row = k%16;
@@ -538,46 +585,46 @@ int jpg_codec_file_decode(FILE *jpg_file, void **out_pixel_array)
             }
                 
 
-            RGB_matrix[k][j] = s_YCbCr_to_RGB((uint8_t)output_matrix[cur_matrix_block + cur_matrix_Y][cur_row_Y][cur_col_Y], 
-                                                                                    (uint8_t)output_matrix[cur_matrix_block+4][cur_row/2][cur_col/2], 
-                                                                                    (uint8_t)output_matrix[cur_matrix_block+5][cur_row/2][cur_col/2]);
+            RGB_matrix[k][j] = s_YCbCr_to_RGB((uint8_t)output_matrix[cur_matrix_block + cur_matrix_Y][cur_row_Y][cur_col_Y], 0, 0
+                                                                                    /*(uint8_t)output_matrix[cur_matrix_block+4][cur_row/2][cur_col/2], 
+                                                                                    (uint8_t)output_matrix[cur_matrix_block+5][cur_row/2][cur_col/2]*/);
         }
     }
 
 
     end = clock();
     time_spent = (double)(end - begin_block) / CLOCKS_PER_SEC;
-    printf("All RGB pixels filled in  %f sec\n", time_spent);
+    log_str("All RGB pixels filled in  %f sec\n", time_spent);
     begin_block = clock();
-    printf("[*] RGB Matrices\n");
-    for (int k = 0; k < 8; k++){
-        printf("[*] \t\t[");
-        for (int j = 0; j < 8; j++){
-            printf("%d ", RGB_matrix[k][j].R);
+    log_str("[*] RGB Matrices\n");
+    for (int k = 0; k < 16; k++){
+        log_str("[*] \t\t[");
+        for (int j = 0; j < 16; j++){
+            log_str("%d ", RGB_matrix[k][j].R);
         }
-        printf("]\n");
+        log_str("]\n");
     }
-    printf("\n");
-    for (int k = 0; k < 8; k++){
-        printf("[*] \t\t[");
-        for (int j = 0; j < 8; j++){
-            printf("%d ", RGB_matrix[k][j].G);
+    log_str("\n");
+    for (int k = 0; k < 16; k++){
+        log_str("[*] \t\t[");
+        for (int j = 0; j < 16; j++){
+            log_str("%d ", RGB_matrix[k][j].G);
         }
-        printf("]\n");
+        log_str("]\n");
     }
-printf("\n");
-    for (int k = 0; k < 8; k++){
-        printf("[*] \t\t[");
-        for (int j = 0; j < 8; j++){
-            printf("%d ", RGB_matrix[k][j].B);
+    log_str("\n");
+    for (int k = 0; k < 16; k++){
+        log_str("[*] \t\t[");
+        for (int j = 0; j < 16; j++){
+            log_str("%d ", RGB_matrix[k][j].B);
         }
-        printf("]\n");
+        log_str("]\n");
     }
 
 
     end = clock();
     time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-    printf("File decoded in %f sec\n", time_spent);
+    log_str("File decoded in %f sec\n", time_spent);
     return bmp_file_create(RGB_matrix, jpg_decode_params.sof0->header.height, jpg_decode_params.sof0->header.width);
     
     // return 0;
@@ -703,7 +750,7 @@ static int chunk_handler_comment(jpg_file_params_t *jpg_param, void* data, uint1
     char *l_comment = calloc(data_size + 1, sizeof(char));
     memcpy(l_comment, data, data_size);
 
-    printf("Comment: %s\n", (char*)l_comment);
+    log_str("Comment: %s\n", (char*)l_comment);
     free(l_comment);
 
     return 0;
@@ -711,13 +758,13 @@ static int chunk_handler_comment(jpg_file_params_t *jpg_param, void* data, uint1
 
 static huffman_tree_t *s_get_dht(huffman_tree_t** huffman_trees, int huffman_trees_cnt, coeff_name_t current_coeff, uint8_t tree_id)
 {
-    // printf("Search table with id = %d and tree class = %d\n", tree_id, current_coeff);
+    log_str("Search table with id = %d and tree class = %d\n", tree_id, current_coeff);
     for (int i = 0; i < huffman_trees_cnt; i++){
         if ((huffman_trees[i]->id == tree_id) && (huffman_trees[i]->tree_class == (uint8_t)current_coeff)){
             return huffman_trees[i];
         }    
     }
-    // printf("Fail\n");
+    // log_str("Fail\n");
     return NULL;
 }
 
@@ -742,14 +789,20 @@ static int decode_data_flow(jpg_decoding_params_t *decoding_param, int*** zigzag
     uint8_t current_value = 0;
     for (size_t i = 0; i < decoding_param->encoded_data_size; i++){
         for (int j = 7; j >= 0; j--){
-            current_node = decoding_param->encoded_data[i] & (0x01 << j) ? (current_node->right ? current_node->right : current_node ) : (current_node->left ? current_node->left : current_node );
+            current_node = (decoding_param->encoded_data[i] & (0x01 << j)) ? (current_node->right/* ? current_node->right : current_node*/ ) : (current_node->left/*? current_node->left : current_node */);
+            log_str("Byte cnt = %d, bit cnt = %d, bit value = %u\n", i, 7-j, (decoding_param->encoded_data[i] & (0x01 << j)) ? 1 : 0);
             if (current_node && !current_node->leaf_node){
-                continue;
+                continue;   
+            } else if (!current_node){
+                log_str("Error node! Tree class: %d, tree id = %d. Byte idx = %lu, bit idx = %d.\n",
+                                                    huffman_tree_current->tree_class, huffman_tree_current->id, i, 7 - j);
+                return 0;
             }
-            if(!current_node->value){
+            log_str("Found value: 0x%x\n", current_node->value);
+            if(current_node->value == 0){
                 if (current_coeff == COEFF_NAME_DC){
                     l_zigzag_matrixes[current_l_zigzag_matrix_cnt][b_zigzag_pos] = 0;
-                    // printf("dc coeff_value = 0\n");
+                    log_str("dc coeff_value = 0\n");
                     b_zigzag_pos++;
                     current_coeff = COEFF_NAME_AC;
                     uint8_t tree_id = decoding_param->sos->channels[(uint8_t)current_channel-1].huffman_table_ac_id;
@@ -757,18 +810,20 @@ static int decode_data_flow(jpg_decoding_params_t *decoding_param, int*** zigzag
                                                         current_coeff, tree_id);
                     current_node = huffman_tree_current->tree;   
                 }  else {
-                    // printf("set next ac coeff_value = 0\n");
+                    log_str("set next ac coeff_value = 0\n");
                     current_l_zigzag_matrix_cnt++;
                     b_zigzag_pos = 0;
                     l_zigzag_matrixes = (int**)realloc(l_zigzag_matrixes, (current_l_zigzag_matrix_cnt + 1) * sizeof(int*));
                     l_zigzag_matrixes[current_l_zigzag_matrix_cnt] = (int*)calloc(64, sizeof(int));
                     current_coeff = COEFF_NAME_DC;
-                    if (++current_channel_cnt >= b_channels_cnt[current_channel-1]){
-                        if(++current_channel > 3)
+                    current_channel_cnt++;
+                    if (current_channel_cnt >= b_channels_cnt[current_channel-1]){
+                        current_channel++;
+                        if(current_channel > CHANNEL_Cr){
                             current_channel = CHANNEL_Y;
-                        
+                        }
                     }
-                    // printf("Set channel = %d\n", current_channel);
+                    log_str("Set channel = %d\n", current_channel);
                     uint8_t tree_id = decoding_param->sos->channels[(uint8_t)current_channel-1].huffman_table_dc_id;
                     huffman_tree_current = s_get_dht(decoding_param->huffman_trees, decoding_param->huffman_trees_cnt, 
                                                         current_coeff, tree_id);
@@ -778,13 +833,14 @@ static int decode_data_flow(jpg_decoding_params_t *decoding_param, int*** zigzag
                 if (current_coeff == COEFF_NAME_DC){
                     int coeff_value = 0;
                     for (int k = 0; k < current_node->value; k++){
-                        if (--j < 0){
+                        j--;
+                        if (j < 0){
                             i++;
                             j = 7;
                         } 
                         coeff_value = (coeff_value << 1) | ((decoding_param->encoded_data[i] & (0x01 << j)) ? 1 : 0);
                     }
-                    // printf("dc coeff_value = %d\n", coeff_value);
+                    log_str("dc coeff_value = %d\n", coeff_value);
                     l_zigzag_matrixes[current_l_zigzag_matrix_cnt][b_zigzag_pos] = (coeff_value & (1 << (current_node->value-1))) ? coeff_value : coeff_value - s_pow_2(current_node->value) + 1;
                     b_zigzag_pos++;
                     current_coeff = COEFF_NAME_AC;
@@ -797,34 +853,41 @@ static int decode_data_flow(jpg_decoding_params_t *decoding_param, int*** zigzag
                     uint8_t zero_cnt = (current_node->value & 0xF0) >> 4;
                     uint16_t coef_lng = (current_node->value & 0x0F);
                     b_zigzag_pos += zero_cnt;
-                    // printf("skip %d ac coeff remain zero.\n", zero_cnt);
-                    for (int k = 0; k < coef_lng; k++){
-                        if (--j < 0){
-                            i++;
-                            j = 7;
-                        } 
-                        coeff_value = (coeff_value << 1) | ((decoding_param->encoded_data[i] & (0x01 << j)) ? 1 : 0);
-                    }
+                    if (zero_cnt) log_str("skip %d ac coeff remain zero.\n", zero_cnt);
                     if (b_zigzag_pos <= 63){
-                        // printf("ac coeff_value = %d, coef_lng = %d\n", coeff_value, coef_lng);
-                    l_zigzag_matrixes[current_l_zigzag_matrix_cnt][b_zigzag_pos] = (coeff_value & (1 << (coef_lng-1))) ? coeff_value : coeff_value + 1 - s_pow_2(coef_lng);
-                    // printf("ac coeff_value after transforming = %d\n", l_zigzag_matrixes[current_l_zigzag_matrix_cnt][b_zigzag_pos]);   
-                    b_zigzag_pos++;
+                        for (int k = 0; k < coef_lng; k++){
+                            j--;
+                            if (j < 0){
+                                i++;
+                                j = 7;
+                            }
+                            coeff_value = (coeff_value << 1) | ((decoding_param->encoded_data[i] & (0x01 << j)) ? 1 : 0);
+                        }
+                        
+                        log_str("ac coeff_value = %d, coef_lng = %u\n", coeff_value, (unsigned short)coef_lng);
+                        // if (coeff_value){
+                            l_zigzag_matrixes[current_l_zigzag_matrix_cnt][b_zigzag_pos] = coeff_value ? (coeff_value & (1 << (coef_lng-1))) ? coeff_value : coeff_value + 1 - s_pow_2(coef_lng) : 0;
+                            log_str("ac coeff_value after transforming = %d\n", l_zigzag_matrixes[current_l_zigzag_matrix_cnt][b_zigzag_pos]);
+                            b_zigzag_pos++;
+                        // }
                     }
                     if (b_zigzag_pos > 63){
-                        // printf("end of matrix\n");
+                        log_str("end of matrix\n");
                         current_l_zigzag_matrix_cnt++;
                         b_zigzag_pos = 0;
                         l_zigzag_matrixes = (int**)realloc(l_zigzag_matrixes, (current_l_zigzag_matrix_cnt + 1)* sizeof(int*));
                         l_zigzag_matrixes[current_l_zigzag_matrix_cnt] = (int*)calloc(64, sizeof(int));
                         current_coeff = COEFF_NAME_DC;
-                        if (++current_channel_cnt > b_channels_cnt[current_channel-1]){
-                            if(++current_channel > 3)
+                        current_channel_cnt++;
+                        if (current_channel_cnt >= b_channels_cnt[current_channel-1]){
+                            current_channel++;
+                            if(current_channel > CHANNEL_Cr){
                                 current_channel = CHANNEL_Y;
+                            }
                         }
                         uint8_t tree_id = decoding_param->sos->channels[(uint8_t)current_channel-1].huffman_table_dc_id;
                         huffman_tree_current = s_get_dht(decoding_param->huffman_trees, decoding_param->huffman_trees_cnt, 
-                                                            current_coeff, tree_id);
+                                                            current_coeff, tree_id);              
                     } 
                     current_node = huffman_tree_current->tree;
                 }

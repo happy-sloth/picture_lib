@@ -6,7 +6,7 @@
 #include <stdint.h>
 
 typedef struct tree_node{
-    int value;
+    uint8_t value;
     bool leaf_node;
     struct tree_node *left;
     struct tree_node *right;
@@ -20,3 +20,6 @@ typedef struct huffman_tree {
 
 
 huffman_tree_t *huffman_tree_create(uint8_t tree_class, uint8_t id, uint8_t *codes_cnt_array, uint8_t *values, uint8_t values_cnt);
+void huffman_tree_dump(huffman_tree_t *tree);
+void print_binary_16bit(uint16_t value , char *out_str);
+void print_binary_8bit(uint8_t value , char *out_str);
